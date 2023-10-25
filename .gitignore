@@ -5,3 +5,5 @@ langid
 *.pyc
 *.so
 langid.pb-c.*
+.idea
+.venv
