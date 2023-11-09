@@ -1,6 +1,8 @@
 // protocol buffer specification for a langid.py-style langauge identifier
 // this defines the model data needed to implement an identifier in any given language
 
+syntax = "proto2";
+
 package langid;
 
 message LanguageIdentifier {

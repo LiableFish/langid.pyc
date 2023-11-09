@@ -1,8 +1,8 @@
 #ifndef _LANGID_H
 #define _LANGID_H
 
-#include "sparseset.h"
 #include "langid.pb-c.h"
+#include "sparseset.h"
 
 /* Structure containing all the state required to
  * implement a language identifier
@@ -20,20 +20,27 @@ typedef struct {
     double (*nb_pc)[];
     double (*nb_ptc)[];
 
-    char *(*nb_classes)[];
+    char* (*nb_classes)[];
 
-    Langid__LanguageIdentifier *protobuf_model;
+    Langid__LanguageIdentifier* protobuf_model;
 
     /* sparsesets for counting states and features. these are
      * part of LanguageIdentifier as the clear operation on them
      * is much less costly than allocating them from scratch
      */
-		Set *sv, *fv;
+    Set *sv, *fv;
 } LanguageIdentifier;
 
-extern LanguageIdentifier *get_default_identifier(void);
-extern LanguageIdentifier *load_identifier(char*);
-extern void destroy_identifier(LanguageIdentifier*);
-extern const char *identify(LanguageIdentifier*, char*, int);
+typedef struct {
+    const char* language;
+    double confidence;
+} LanguageConfidence;
 
+extern LanguageIdentifier* get_default_identifier(void);
+extern LanguageIdentifier* load_identifier(char*);
+extern void destroy_identifier(LanguageIdentifier*);
+
+extern LanguageConfidence classify(LanguageIdentifier*, const char*, unsigned int);
+//extern void rank(LanguageIdentifier*, char*, unsigned int, LanguageConfidence* out)
+//extern void set_languages(LanguageIdentifier*, const char* [], unsigned int)
 #endif

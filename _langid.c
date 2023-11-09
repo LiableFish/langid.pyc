@@ -8,40 +8,32 @@
  * Marco Lui <saffsd@gmail.com>, September 2014
  */
 #define PY_SSIZE_T_CLEAN
-#include <Python.h>
 #include "liblangid.h"
+#include <Python.h>
 
 /* Docstrings */
-static char module_docstring[] =
-    "This module provides an off-the-shelf language identifier.";
-static char identify_docstring[] =
-    "Identify the language of a piece of text.";
+static char module_docstring[] = "This module provides an off-the-shelf language identifier.";
+static char classify_docstring[] = "Identify the language of a piece of text.";
 
 /* Available functions */
-static PyObject *langid_identify(PyObject *self, PyObject *args);
+static PyObject* langid_classify(PyObject* self, PyObject* args);
 
 /* Module specification */
-static PyMethodDef module_methods[] = {
-    {"identify", langid_identify, METH_VARARGS, identify_docstring},
-    {NULL, NULL, 0, NULL}
-};
+static PyMethodDef module_methods[] = {{"classify", langid_classify, METH_VARARGS, classify_docstring},
+                                       {NULL, NULL, 0, NULL}};
 
-static struct PyModuleDef langidmodule = {
-    PyModuleDef_HEAD_INIT,
-    "_langid",     /* name of module */
-    module_docstring,  /* module documentation, may be NULL */
-    -1,          /* size of per-interpreter state of the module,
+static struct PyModuleDef langid_module = {PyModuleDef_HEAD_INIT, "_langid", /* name of module */
+                                           module_docstring,                 /* module documentation, may be NULL */
+                                           -1, /* size of per-interpreter state of the module,
                  or -1 if the module keeps state in global variables. */
-    module_methods
-};
+                                           module_methods};
 
 /* Global LanguageIdentifier instance */
-LanguageIdentifier *identifier;
+LanguageIdentifier* identifier;
 
 /* Initialize the module */
-PyMODINIT_FUNC PyInit__langid(void)
-{
-    PyObject *m = PyModule_Create(&langidmodule);
+PyMODINIT_FUNC PyInit__langid(void) {
+    PyObject* m = PyModule_Create(&langid_module);
 
     if (m == NULL)
         return NULL;
@@ -51,20 +43,18 @@ PyMODINIT_FUNC PyInit__langid(void)
     return m;
 }
 
-static PyObject *langid_identify(PyObject *self, PyObject *args)
-{
-    const char *bytes;
-    const char *lang;
+static PyObject* langid_classify(PyObject* self, PyObject* args) {
+    const char* bytes;
     Py_ssize_t numBytes;
-    PyObject *ret;
+    PyObject* ret;
 
     if (!PyArg_ParseTuple(args, "s#", &bytes, &numBytes))
         return NULL;
 
     /* Run our identifier */
-    lang = identify(identifier, bytes, numBytes);
+    LanguageConfidence language_confidence = classify(identifier, bytes, numBytes);
 
     /* Build the output object */
-    ret = Py_BuildValue("s", lang);
+    ret = Py_BuildValue("(s,d)", language_confidence.language, language_confidence.confidence);
     return ret;
 }

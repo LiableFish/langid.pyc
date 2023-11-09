@@ -61,3 +61,74 @@ References
 [3] https://code.google.com/p/cld2/
 [4] https://github.com/google/protobuf/
 [5] https://github.com/protobuf-c/protobuf-c
+
+
+apt install protobuf-c-compiler libprotobuf-c-dev
+
+# Comments
+In `liblangid.c`, adjust the `text_to_fv` and `logprob_to_pred` functions to ensure you are comparing integers of the same sign. And, of course, adjust your `identify` function to take a `const char*` if needed.
+The warnings you're seeing are because of a few parts of your C code not adhering perfectly to certain best practices, but they don't necessarily indicate bugs. Here's how you can fix them:
+
+1. `warning: passing argument 2 of ‘identify’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]`
+
+   You are passing the variable `bytes` which you declared as `const char*` to a function which expects `char*`. Since you don't want `identify` to modify `bytes`, you should declare it as taking `const char*`. Modify the `identify` function declaration and definition accordingly.
+
+2. `warning: comparison of integer expressions of different signedness: ‘unsigned int’ and ‘int’ [-Wsign-compare]`
+
+   You are comparing a signed int to an unsigned int. Converting one to the type of the other should resolve this. Here's how you can change this:
+   ```c
+   for (i=0; (unsigned)i < textlen; i++)
+   ```%%
+
+
+langid.c: In function ‘langid_identify’:
+_langid.c:65:33: warning: passing argument 2 of ‘identify’ discards ‘const’ qualifier from pointer target type [-Wdiscarded-qualifiers]
+   65 |     lang = identify(identifier, bytes, numBytes);
+      |                                 ^~~~~
+In file included from _langid.c:12:
+liblangid.h:37:20: note: expected ‘char *’ but argument is of type ‘const char *’
+   37 | extern const char *identify(LanguageIdentifier*, char*, int);
+      |                    ^~~~~~~~
+gcc -pthread -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O3 -Wall -DOPENSSL_NO_SSL3 -fPIC -I/opt/venv/include -I/root/.pyenv/versions/3.8.10/include/python3.8 -c langid.pb-c.c -o build/temp.linux-x86_64-cpython-38/langid.pb-c.o
+gcc -pthread -Wno-unused-result -Wsign-compare -DNDEBUG -g -fwrapv -O3 -Wall -DOPENSSL_NO_SSL3 -fPIC -I/opt/venv/include -I/root/.pyenv/versions/3.8.10/include/python3.8 -c liblangid.c -o build/temp.linux-x86_64-cpython-38/liblangid.o
+liblangid.c: In function ‘text_to_fv’:
+liblangid.c:128:15: warning: comparison of integer expressions of different signedness: ‘unsigned int’ and ‘int’ [-Wsign-compare]
+  128 |   for (i=0; i < textlen; i++){
+      |               ^
+liblangid.c: In function ‘logprob_to_pred’:
+liblangid.c:169:16: warning: comparison of integer expressions of different signedness: ‘int’ and ‘unsigned int’ [-Wsign-compare]
+  169 |
+
+
+
+  The errors you're seeing are due to missing definitions that the linker (`ld`) expects:
+
+1. `/usr/bin/ld: /usr/lib/gcc/x86_64-linux-gnu/9/../../../x86_64-linux-gnu/Scrt1.o: in function _start': (.text+0x24): undefined reference to 'main'`:
+   This error indicates that the linker couldn't find a `main` function, which is the required entry point for a C program to start execution. This typically happens when you're trying to compile a program that's intended to produce an executable file but have not defined a `main` function, or when you're mistakenly trying to compile a library as an executable.
+
+2. `liblangid.c:(.text+0x38f): undefined reference to 'exp'` and similar:
+   This error tells you that the `exp` function is used in `liblangid.c` but the linker cannot find its definition. Since `exp` is part of the math library, you need to link against it with `-lm`.
+
+Here's how you can resolve both issues:
+
+- Make sure that you have a `main` function defined in one of your source files. If you're compiling a library rather than an executable, you should be creating a `.so` or `.a` file, not an executable. In that case, you do not need a `main` function, and you should compile with options suitable for building libraries, such as `-shared` for shared libraries.
+
+- Add `-lm` to the end of your `gcc` command to link against the math library. The math functions, like `exp`, are not included in the standard C library, and this flag tells the linker to link with the math library.
+
+Taking the above two points into account, your command should look something like this for an executable:
+
+```bash
+cc -Os -Wall langid.c liblangid.o model.o sparseset.o langid.pb-c.o -lprotobuf-c -lm -o langid
+```
+
+Or like this for a shared library:
+
+```bash
+cc -Os -Wall -shared liblangid.o model.o sparseset.o langid.pb-c.o -lprotobuf-c -lm -o liblangid.so
+```
+
+Please note the following changes:
+
+- You should not include header files (`.h`) in the link command. Only source (`*.c`) and object (`*.o`) files should be compiled or linked.
+- The `-lm` option is added to link the math library.
+- Ensure all your `.c` files that require compilation are present in the command, and ensure you have only one `main` function amongst your `.c` files if you're building an executable.
