@@ -11,6 +11,7 @@
 #include "model.h"
 #include "sparseset.h"
 #include <fcntl.h>
+#include <float.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,13 +52,6 @@ LanguageIdentifier* load_identifier(char* model_path) {
     int fd, model_len;
     unsigned char* model_buf;
     LanguageIdentifier* lid;
-#ifdef DEBUG
-    int i;
-#endif
-
-#ifdef DEBUG
-    fprintf(stderr, "loading a model from: %s\n", model_path);
-#endif
 
     /* Use mmap to access the model file */
     if ((fd = open(model_path, O_RDONLY)) == -1) {
@@ -95,18 +89,6 @@ LanguageIdentifier* load_identifier(char* model_path) {
     lid->nb_ptc = (double(*)[])msg->nb_ptc;
     lid->nb_classes = (char*(*)[])msg->nb_classes;
 
-#ifdef DEBUG
-    fprintf(stderr, "num_feats: %d num_langs: %d num_states: %d\n", lid->num_feats, lid->num_langs, lid->num_states);
-
-    for (i = 0; i < lid->num_langs; i++) {
-        fprintf(stderr, "  lang:%s\n", (*lid->nb_classes)[i]);
-        fprintf(stderr, "  lid->nb_pc:%lf\n", (*lid->nb_pc)[i]);
-        fprintf(stderr, "  msg->nb_pc:%lf\n", (msg->nb_pc)[i]);
-        /*fprintf(stderr, "  lang:%s msg->nb_pc: %lf lid->nb_pc: %lf\n", (*lid->nb_classes)+i, msg->nb_pc+i, lid->nb_pc+i);
-			 */
-    }
-#endif
-
     lid->protobuf_model = msg;
 
     return lid;
@@ -125,13 +107,13 @@ void destroy_identifier(LanguageIdentifier* lid) {
  * Convert a text stream into a feature vector. The feature vector counts
  * how many times each sequence is seen.
  */
-void text_to_fv(LanguageIdentifier* lid, const char* text, unsigned int textlen, Set* sv, Set* fv) {
+static void text_to_fv(LanguageIdentifier* lid, const char* text, unsigned int text_len, Set* sv, Set* fv) {
     unsigned int i, j, m, s = 0;
 
     clear(sv);
     clear(fv);
 
-    for (i = 0; i < textlen; ++i) {
+    for (i = 0; i < text_len; ++i) {
         s = (*lid->tk_nextmove)[s][(unsigned char)text[i]];
         add(sv, s, 1);
     }
@@ -147,7 +129,7 @@ void text_to_fv(LanguageIdentifier* lid, const char* text, unsigned int textlen,
     return;
 }
 
-void fv_to_logprob(LanguageIdentifier* lid, Set* fv, double logprob[]) {
+static void fv_to_logprob(LanguageIdentifier* lid, Set* fv, double logprob[]) {
     unsigned int i, j, m;
     double* nb_ptc_p;
 
@@ -170,33 +152,39 @@ void fv_to_logprob(LanguageIdentifier* lid, Set* fv, double logprob[]) {
     return;
 }
 
-void logprob_to_prob(double logprob[], unsigned int size) {
-    /*  python reference: pd = 1 / np.exp(pd[None,:] - pd[:,None]).sum(1)  */
-    /*
-
-    x = pd[i]
-
-    new_pd[i] = 1 / sum_{y in pd} e^(y - x) = e^x / sum_{y in pd} e^y = softmax(x)
-
+static void logprob_to_prob(double logprob[], unsigned int size) {
+    /*  python reference: pd = 1 / np.exp(pd[None,:] - pd[:,None]).sum(1)
+    this is basically softmax:
+        x = pd[i]
+        new_pd[i] = 1 / sum_{y in pd} e^(y - x) = e^x / sum_{y in pd} e^y = softmax(x)
     */
+
     unsigned int i;
-    double prod_sum = 0;
+    double sum = 0.0;
+    double max_logprob = -DBL_MAX;
 
     for (i = 0; i < size; ++i) {
-        prod_sum += exp(logprob[i]);
+        if (logprob[i] > max_logprob) {
+            max_logprob = logprob[i];
+        }
     }
 
     for (i = 0; i < size; ++i) {
-        logprob[i] = exp(logprob[i]) / prod_sum;
+        logprob[i] = exp(logprob[i] - max_logprob);
+        sum += logprob[i];
+    }
+
+    for (i = 0; i < size; ++i) {
+        logprob[i] /= sum;
     }
 
     return;
 }
 
-unsigned int prob_to_pred_idx(double prob[], unsigned int size) {
+static unsigned int prob_to_pred_idx(double prob[], unsigned int size) {
     unsigned int i, m = 0;
 
-    for (i = 1; i < size; i++) {
+    for (i = 1; i < size; ++i) {
         if (prob[m] < prob[i]) {
             m = i;
         }
@@ -205,12 +193,12 @@ unsigned int prob_to_pred_idx(double prob[], unsigned int size) {
     return m;
 }
 
-LanguageConfidence classify(LanguageIdentifier* lid, const char* text, unsigned int textlen) {
+LanguageConfidence classify(LanguageIdentifier* lid, const char* text, unsigned int text_len) {
     double lp[lid->num_langs];
     unsigned int pred_idx;
     LanguageConfidence pred;
 
-    text_to_fv(lid, text, textlen, lid->sv, lid->fv);
+    text_to_fv(lid, text, text_len, lid->sv, lid->fv);
     fv_to_logprob(lid, lid->fv, lp);
     logprob_to_prob(lp, lid->num_langs);
 
@@ -220,12 +208,28 @@ LanguageConfidence classify(LanguageIdentifier* lid, const char* text, unsigned 
     pred.confidence = lp[pred_idx];
 
     return pred;
+}
 
-    //#ifdef DEBUG
-    //    unsigned int = i;
-    //    fprintf(stderr, "pred lang: %s logprob: %lf\n", (*lid->nb_classes)[pred], lp[pred]);
-    //    for (i = 0; i < lid->num_langs; i++) {
-    //        fprintf(stderr, "  lang: %s logprob: %lf\n", (*lid->nb_classes)[i], lp[i]);
-    //    }
-    //#endif
+static int compare_language_confidence(const void* first, const void* second) {
+    LanguageConfidence* first_lc = (LanguageConfidence*)first;
+    LanguageConfidence* second_ls = (LanguageConfidence*)second;
+
+    return (first_lc->confidence < second_ls->confidence) - (first_lc->confidence > second_ls->confidence);
+}
+
+void rank(LanguageIdentifier* lid, const char* text, unsigned int text_len, LanguageConfidence* out) {
+    double lp[lid->num_langs];
+    unsigned int i;
+
+    text_to_fv(lid, text, text_len, lid->sv, lid->fv);
+    fv_to_logprob(lid, lid->fv, lp);
+    logprob_to_prob(lp, lid->num_langs);
+
+    for (i = 0; i < lid->num_langs; ++i) {
+        out[i].language = (*lid->nb_classes)[i];
+        out[i].confidence = lp[i];
+    }
+
+    /* sort in descending order */
+    qsort(out, lid->num_langs, sizeof(LanguageConfidence), compare_language_confidence);
 }

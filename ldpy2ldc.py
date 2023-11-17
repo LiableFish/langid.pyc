@@ -2,6 +2,16 @@
 Repack the Python model into a form that langid.c can read.
 
 Marco Lui, July 2014
+
+Glossary:
+- tk is [byte n-gram] Tokenizer based on Aho-Corasick Deterministic Finite Automaton [DFA]
+- tk_nextmove is an array that represents transition in DFA from given state through given char (byte)
+- tk_output is a flat array of features that can be completed upon entering any state
+- tk_output_s is an array that holds the starting index in the `tk_output` array for each state
+- tk_output_c is an array that holds the count of features that can be completed by entering each state
+- nb is Naive Bayes
+- nb_pc is P(C), prior [log] probability of class == language
+- nb_ptc is P(t|C), [log] probability of token (== byte n-gram) given class == language
 """
 
 import argparse
@@ -115,7 +125,7 @@ if __name__ == "__main__":
     print("TK_OUTPUT", type(identifier.tk_output), len(identifier.tk_output))
 
     num_feats, num_langs = identifier.nb_ptc.shape
-    # '>> 8' == 'divide by 256', and 256 is the alphabet size (number of unique values for 8 bit == 2 ** 8)
+    # '>> 8' == 'divide by 256', and 256 is the utf-8 alphabet size (number of unique values for 8 bit == 2 ** 8)
     num_states = len(identifier.tk_nextmove) >> 8
     print("NUM_STATES", num_states)
 

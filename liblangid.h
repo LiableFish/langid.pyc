@@ -41,6 +41,6 @@ extern LanguageIdentifier* load_identifier(char*);
 extern void destroy_identifier(LanguageIdentifier*);
 
 extern LanguageConfidence classify(LanguageIdentifier*, const char*, unsigned int);
-//extern void rank(LanguageIdentifier*, char*, unsigned int, LanguageConfidence* out)
+extern void rank(LanguageIdentifier*, const char*, unsigned int, LanguageConfidence*);
 //extern void set_languages(LanguageIdentifier*, const char* [], unsigned int)
 #endif
