@@ -20,8 +20,7 @@ int main(int argc, char** argv) {
     LanguageConfidence language_confidence;
     size_t path_size = 4096, text_size = 4096;
     ssize_t pathlen, textlen;
-    char *path = NULL,
-         *text = NULL; /* NULL init required for use with getline/getdelim*/
+    char *path = NULL, *text = NULL; /* NULL init required for use with getline/getdelim*/
     LanguageIdentifier* lid;
 
     /* for use while accessing files through mmap*/
@@ -112,15 +111,13 @@ int main(int argc, char** argv) {
                 lang = no_file;
             } else {
                 textlen = lseek(fd, 0, SEEK_END);
-                text = (char*)mmap(NULL, textlen, PROT_READ | PROT_WRITE,
-                                   MAP_PRIVATE, fd, 0);
+                text = (char*)mmap(NULL, textlen, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
                 language_confidence = classify(lid, text, textlen);
                 lang = language_confidence.language;
 
                 /* no need to munmap if textlen is 0 */
                 if (textlen && (munmap(text, textlen) == -1)) {
-                    fprintf(stderr, "failed to munmap %s of length %zd \n",
-                            path, textlen);
+                    fprintf(stderr, "failed to munmap %s of length %zd \n", path, textlen);
                     exit(-1);
                 }
 

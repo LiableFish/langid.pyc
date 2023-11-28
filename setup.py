@@ -1,14 +1,22 @@
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 
-langid = Extension(
+# Extension definition
+langid_extension = Extension(
     "_langid",
     language='c',
-    libraries=['protobuf-c'],
+    libraries=['protobuf-c'],  # Link against the protobuf-c library
+    include_dirs=[
+        '/opt/homebrew/include',  # Include directory for protobuf-c headers
+    ],
+    library_dirs=[
+        '/opt/homebrew/lib',  # Library directory for protobuf-c
+    ],
     sources=["_langid.c", "liblangid.c", "model.c", "sparseset.c", "langid.pb-c.c"],
 )
 
+# Setup function call with updated Extension
 setup(
     name='langid',
     version='1.0.0',
-    ext_modules=[langid],
+    ext_modules=[langid_extension],
 )

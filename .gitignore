@@ -8,3 +8,5 @@ langid.pb-c.*
 .idea
 .venv
 .vscode
+dist/
+*.egg-info/
