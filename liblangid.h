@@ -37,7 +37,7 @@ typedef struct {
 } LanguageConfidence;
 
 extern LanguageIdentifier* get_default_identifier(void);
-extern LanguageIdentifier* load_identifier(char*);
+extern LanguageIdentifier* load_identifier(const char*);
 extern void destroy_identifier(LanguageIdentifier*);
 
 extern LanguageConfidence classify(LanguageIdentifier*, const char*, unsigned int);

@@ -47,7 +47,7 @@ LanguageIdentifier* get_default_identifier(void) {
     return lid;
 }
 
-LanguageIdentifier* load_identifier(char* model_path) {
+LanguageIdentifier* load_identifier(const char* model_path) {
     Langid__LanguageIdentifier* msg;
     int fd, model_len;
     unsigned char* model_buf;
@@ -230,6 +230,6 @@ void rank(LanguageIdentifier* lid, const char* text, unsigned int text_len, Lang
         out[i].confidence = lp[i];
     }
 
-    /* sort in descending order */
+    // sort in descending order
     qsort(out, lid->num_langs, sizeof(LanguageConfidence), compare_language_confidence);
 }

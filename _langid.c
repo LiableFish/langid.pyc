@@ -11,64 +11,96 @@
 #include "liblangid.h"
 #include <Python.h>
 
-/* Docstrings */
-static char module_docstring[] = "This module provides an off-the-shelf language identifier.";
-static char classify_docstring[] = "Identify the language and confidence of a piece of text.";
-static char rank_docstring[] = "Rank the confidences of the languages for a given text.";
+typedef struct {
+    PyObject_HEAD LanguageIdentifier* identifier;
+} LangIdObject;
 
-/* Available functions */
-static PyObject* langid_classify(PyObject* self, PyObject* args);
-static PyObject* langid_rank(PyObject* self, PyObject* args);
-static void langid_free(void* module);
+static void langid_dealloc(LangIdObject* self);
+static PyObject* langid_new(PyTypeObject* type, PyObject* args, PyObject* kwds);
+static int langid_init(LangIdObject* self, PyObject* args, PyObject* kwds);
+static PyObject* langid_classify(LangIdObject* self, PyObject* args);
+static PyObject* langid_rank(LangIdObject* self, PyObject* args);
 
-/* Module specification */
-static PyMethodDef module_methods[] = {
-    {"classify", langid_classify, METH_VARARGS, classify_docstring},
-    {"rank", langid_rank, METH_VARARGS, rank_docstring},
+static PyMethodDef LangIdObject_methods[] = {
+    {"classify", (PyCFunction)langid_classify, METH_VARARGS,
+     "Identify the language and confidence of a piece of text."},
+    {"rank", (PyCFunction)langid_rank, METH_VARARGS, "Rank the confidences of the languages for a given text."},
     {NULL, NULL, 0, NULL} // Sentinel
 };
 
-/* Global LanguageIdentifier instance */
-static LanguageIdentifier* identifier = NULL;
+static PyTypeObject LangIdType = {
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_langid.LangId",
+    .tp_doc = PyDoc_STR("Off-the-shelf language identifier"),
+    .tp_basicsize = sizeof(LangIdObject),
+    .tp_itemsize = 0,
+    .tp_new = langid_new,
+    .tp_init = (initproc)langid_init,
+    .tp_dealloc = (destructor)langid_dealloc,
+    .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_methods = LangIdObject_methods,
+};
 
-/* Initialize the module */
+static struct PyModuleDef langidmodule = {
+    .m_base = PyModuleDef_HEAD_INIT,
+    .m_name = "_langid",
+    .m_doc = "This module provides an off-the-shelf language identifier.",
+    .m_size = -1,
+};
+
 PyMODINIT_FUNC PyInit__langid(void) {
-    static struct PyModuleDef module_def = {
-        PyModuleDef_HEAD_INIT,
-        "_langid",        // m_name
-        module_docstring, // m_doc
-        -1,               // m_size
-        module_methods,   // m_methods
-        NULL,             // m_reload
-        NULL,             // m_traverse
-        NULL,             // m_clear
-        langid_free       // m_free
-    };
+    PyObject* m;
+    if (PyType_Ready(&LangIdType) < 0)
+        return NULL;
 
-    PyObject* m = PyModule_Create(&module_def);
+    m = PyModule_Create(&langidmodule);
     if (m == NULL)
         return NULL;
 
-    // Initialize global LanguageIdentifier instance
-    identifier = get_default_identifier();
-    if (identifier == NULL) {
-        Py_DECREF(m); // Decrease reference count to free module
+    Py_INCREF(&LangIdType);
+    if (PyModule_AddObject(m, "LangId", (PyObject*)&LangIdType) < 0) {
+        Py_DECREF(&LangIdType);
+        Py_DECREF(m);
         return NULL;
     }
 
     return m;
 }
 
-/* Module destructor */
-static void langid_free(void* module) {
-    if (identifier != NULL) {
-        destroy_identifier(identifier);
-        identifier = NULL;
+static PyObject* langid_new(PyTypeObject* type, PyObject* args, PyObject* kwds) {
+    LangIdObject* self;
+    self = (LangIdObject*)type->tp_alloc(type, 0);
+    if (self != NULL) {
+        self->identifier = NULL;
     }
+    return (PyObject*)self;
 }
 
-/* langid.classify() Python function definition */
-static PyObject* langid_classify(PyObject* self, PyObject* args) {
+static void langid_dealloc(LangIdObject* self) {
+    if (self->identifier != NULL) {
+        destroy_identifier(self->identifier);
+    }
+    Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+// Initialize the LangIdObject with a LanguageIdentifier instance loaded from the model
+static int langid_init(LangIdObject* self, PyObject* args, PyObject* kwds) {
+    const char* model_path;
+    if (!PyArg_ParseTuple(args, "s", &model_path)) {
+        return -1;
+    }
+
+    // TODO: refactor load_identifier so it throughs error we can catch here
+    self->identifier = load_identifier(model_path);
+    if (self->identifier == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to load LanguageIdentifier from model");
+        return -1;
+    }
+
+    return 0;
+}
+
+/* langid.classify() Python method */
+static PyObject* langid_classify(LangIdObject* self, PyObject* args) {
     const char* text;
     Py_ssize_t text_length;
     PyObject* result;
@@ -76,14 +108,15 @@ static PyObject* langid_classify(PyObject* self, PyObject* args) {
     if (!PyArg_ParseTuple(args, "s#", &text, &text_length))
         return NULL;
 
-    LanguageConfidence language_confidence = classify(identifier, text, text_length);
+    LanguageConfidence language_confidence = classify(self->identifier, text, text_length);
 
     result = Py_BuildValue("(s,d)", language_confidence.language, language_confidence.confidence);
 
     return result;
 }
 
-static PyObject* langid_rank(PyObject* self, PyObject* args) {
+/* langid.rank() Python method */
+static PyObject* langid_rank(LangIdObject* self, PyObject* args) {
     const char* text;
     Py_ssize_t text_length;
 
@@ -91,23 +124,24 @@ static PyObject* langid_rank(PyObject* self, PyObject* args) {
         return NULL;
     }
 
-    LanguageConfidence* confidences = (LanguageConfidence*)malloc(identifier->num_langs * sizeof(LanguageConfidence));
+    LanguageConfidence* confidences =
+        (LanguageConfidence*)malloc(self->identifier->num_langs * sizeof(LanguageConfidence));
 
     if (confidences == NULL) {
         PyErr_NoMemory();
         return NULL;
     }
 
-    rank(identifier, text, text_length, confidences);
+    rank(self->identifier, text, text_length, confidences);
 
-    PyObject* lang_conf_list = PyList_New(identifier->num_langs);
+    PyObject* lang_conf_list = PyList_New(self->identifier->num_langs);
 
     if (lang_conf_list == NULL) {
         free(confidences);
         return NULL;
     }
 
-    for (Py_ssize_t i = 0; i < identifier->num_langs; ++i) {
+    for (Py_ssize_t i = 0; i < self->identifier->num_langs; ++i) {
         PyObject* conf_tuple = Py_BuildValue("(s,d)", confidences[i].language, confidences[i].confidence);
         if (conf_tuple == NULL) {
             Py_DECREF(lang_conf_list);
