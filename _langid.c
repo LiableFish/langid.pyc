@@ -12,30 +12,32 @@
 #include <Python.h>
 
 typedef struct {
-    PyObject_HEAD LanguageIdentifier* identifier;
+    PyObject_HEAD
+    LanguageIdentifier* identifier;
 } LangIdObject;
 
-static void langid_dealloc(LangIdObject* self);
-static PyObject* langid_new(PyTypeObject* type, PyObject* args, PyObject* kwds);
-static int langid_init(LangIdObject* self, PyObject* args, PyObject* kwds);
-static PyObject* langid_classify(LangIdObject* self, PyObject* args);
-static PyObject* langid_rank(LangIdObject* self, PyObject* args);
+static void LangId_dealloc(LangIdObject* self);
+static PyObject* LangId_new(PyTypeObject* type, PyObject* args, PyObject* kwds);
+static int LangId_init(LangIdObject* self, PyObject* args, PyObject* kwds);
+static PyObject* LangId_classify(LangIdObject* self, PyObject* args);
+static PyObject* LangId_rank(LangIdObject* self, PyObject* args);
 
+// TODO: add module level methods (or maybe in python code and not here?)
 static PyMethodDef LangIdObject_methods[] = {
-    {"classify", (PyCFunction)langid_classify, METH_VARARGS,
-     "Identify the language and confidence of a piece of text."},
-    {"rank", (PyCFunction)langid_rank, METH_VARARGS, "Rank the confidences of the languages for a given text."},
-    {NULL, NULL, 0, NULL} // Sentinel
+    {"classify", (PyCFunction)LangId_classify, METH_VARARGS, "Identify the language and confidence of a piece of text."},
+    {"rank", (PyCFunction)LangId_rank, METH_VARARGS, "Rank the confidences of the languages for a given text."},
+    {NULL} // Sentinel
 };
 
 static PyTypeObject LangIdType = {
-    .ob_base = PyVarObject_HEAD_INIT(NULL, 0).tp_name = "_langid.LangId",
+    .ob_base = PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "_langid.LangId",
     .tp_doc = PyDoc_STR("Off-the-shelf language identifier"),
     .tp_basicsize = sizeof(LangIdObject),
     .tp_itemsize = 0,
-    .tp_new = langid_new,
-    .tp_init = (initproc)langid_init,
-    .tp_dealloc = (destructor)langid_dealloc,
+    .tp_new = LangId_new,
+    .tp_init = (initproc)LangId_init,
+    .tp_dealloc = (destructor)LangId_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
     .tp_methods = LangIdObject_methods,
 };
@@ -46,6 +48,7 @@ static struct PyModuleDef langidmodule = {
     .m_doc = "This module provides an off-the-shelf language identifier.",
     .m_size = -1,
 };
+
 
 PyMODINIT_FUNC PyInit__langid(void) {
     PyObject* m;
@@ -66,7 +69,7 @@ PyMODINIT_FUNC PyInit__langid(void) {
     return m;
 }
 
-static PyObject* langid_new(PyTypeObject* type, PyObject* args, PyObject* kwds) {
+static PyObject* LangId_new(PyTypeObject* type, PyObject* args, PyObject* kwds) {
     LangIdObject* self;
     self = (LangIdObject*)type->tp_alloc(type, 0);
     if (self != NULL) {
@@ -75,7 +78,7 @@ static PyObject* langid_new(PyTypeObject* type, PyObject* args, PyObject* kwds) 
     return (PyObject*)self;
 }
 
-static void langid_dealloc(LangIdObject* self) {
+static void LangId_dealloc(LangIdObject* self) {
     if (self->identifier != NULL) {
         destroy_identifier(self->identifier);
     }
@@ -83,13 +86,13 @@ static void langid_dealloc(LangIdObject* self) {
 }
 
 // Initialize the LangIdObject with a LanguageIdentifier instance loaded from the model
-static int langid_init(LangIdObject* self, PyObject* args, PyObject* kwds) {
+static int LangId_init(LangIdObject* self, PyObject* args, PyObject* kwds) {
     const char* model_path;
     if (!PyArg_ParseTuple(args, "s", &model_path)) {
         return -1;
     }
-
-    // TODO: refactor load_identifier so it throughs error we can catch here
+    
+    // TODO: refactor load_identifier so it throughs error we can catch here 
     self->identifier = load_identifier(model_path);
     if (self->identifier == NULL) {
         PyErr_SetString(PyExc_RuntimeError, "Failed to load LanguageIdentifier from model");
@@ -100,7 +103,7 @@ static int langid_init(LangIdObject* self, PyObject* args, PyObject* kwds) {
 }
 
 /* langid.classify() Python method */
-static PyObject* langid_classify(LangIdObject* self, PyObject* args) {
+static PyObject* LangId_classify(LangIdObject* self, PyObject* args) {
     const char* text;
     Py_ssize_t text_length;
     PyObject* result;
@@ -116,7 +119,7 @@ static PyObject* langid_classify(LangIdObject* self, PyObject* args) {
 }
 
 /* langid.rank() Python method */
-static PyObject* langid_rank(LangIdObject* self, PyObject* args) {
+static PyObject* LangId_rank(LangIdObject* self, PyObject* args) {
     const char* text;
     Py_ssize_t text_length;
 
