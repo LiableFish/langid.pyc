@@ -43,34 +43,56 @@ LanguageIdentifier* get_default_identifier(void) {
     lid->nb_classes = &nb_classes;
 
     lid->protobuf_model = NULL;
+    lid->nb_classes_mask = malloc(sizeof(bool) * lid->num_langs);
+
+    if (lid->nb_classes_mask == NULL) {
+        fprintf(stderr, "Memory allocation failed for language_mask\n");
+        free(lid);
+        return NULL;
+    } else {
+        for (size_t i = 0; i < lid->num_langs; ++i) {
+            lid->nb_classes_mask[i] = true;
+        }
+    }
 
     return lid;
 }
 
 LanguageIdentifier* load_identifier(const char* model_path) {
     Langid__LanguageIdentifier* msg;
-    int fd, model_len;
+    int fd;
     unsigned char* model_buf;
     LanguageIdentifier* lid;
 
-    /* Use mmap to access the model file */
-    if ((fd = open(model_path, O_RDONLY)) == -1) {
-        fprintf(stderr, "unable to open: %s\n", model_path);
-        exit(-1);
+    fd = open(model_path, O_RDONLY);
+    if (fd == -1) {
+        fprintf(stderr, "Unable to open: %s\n", model_path);
+        return NULL;
     }
-    model_len = lseek(fd, 0, SEEK_END);
-    model_buf = (unsigned char*)mmap(NULL, model_len, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 
-    /*printf("read in a model of size %d\n", model_len);*/
+    off_t model_len = lseek(fd, 0, SEEK_END);
+    model_buf = mmap(NULL, model_len, PROT_READ, MAP_PRIVATE, fd, 0);
+    if (model_buf == MAP_FAILED) {
+        fprintf(stderr, "Failed to map the model file: %s\n", model_path);
+        close(fd);
+        return NULL;
+    }
+
     msg = langid__language_identifier__unpack(NULL, model_len, model_buf);
-
     if (msg == NULL) {
-        fprintf(stderr, "error unpacking model from: %s\n", model_path);
-        exit(-1);
+        fprintf(stderr, "Error unpacking model from: %s\n", model_path);
+        munmap(model_buf, model_len);
+        close(fd);
+        return NULL;
     }
 
-    if ((lid = (LanguageIdentifier*)malloc(sizeof(LanguageIdentifier))) == 0) {
-        exit(-1);
+    lid = (LanguageIdentifier*)malloc(sizeof(LanguageIdentifier));
+    if (lid == NULL) {
+        fprintf(stderr, "Memory allocation failed for LanguageIdentifier\n");
+        langid__language_identifier__free_unpacked(msg, NULL);
+        munmap(model_buf, model_len);
+        close(fd);
+        return NULL;
     }
 
     lid->sv = alloc_set(msg->num_states);
@@ -91,6 +113,20 @@ LanguageIdentifier* load_identifier(const char* model_path) {
 
     lid->protobuf_model = msg;
 
+    lid->nb_classes_mask = malloc(sizeof(bool) * msg->num_langs);
+
+    if (lid->nb_classes_mask == NULL) {
+        fprintf(stderr, "Memory allocation failed for language_mask\n");
+        free(lid);
+        langid__language_identifier__free_unpacked(msg, NULL);
+        munmap(model_buf, model_len);
+        close(fd);
+        return NULL;
+    } else {
+        for (size_t i = 0; i < msg->num_langs; ++i) {
+            lid->nb_classes_mask[i] = true;
+        }
+    }
     return lid;
 }
 
@@ -98,6 +134,7 @@ void destroy_identifier(LanguageIdentifier* lid) {
     if (lid->protobuf_model != NULL) {
         langid__language_identifier__free_unpacked(lid->protobuf_model, NULL);
     }
+    free(lid->nb_classes_mask);
     free_set(lid->sv);
     free_set(lid->fv);
     free(lid);
@@ -133,9 +170,13 @@ static void fv_to_logprob(LanguageIdentifier* lid, Set* fv, double logprob[]) {
     unsigned int i, j, m;
     double* nb_ptc_p;
 
-    /* Initialize using prior */
+    /* Initialize using prior taking into account supported language mask */
     for (i = 0; i < lid->num_langs; ++i) {
-        logprob[i] = (*lid->nb_pc)[i];
+        if (lid->nb_classes_mask[i]) {
+            logprob[i] = (*lid->nb_pc)[i];
+        } else {
+            logprob[i] = -INFINITY;
+        }
     }
 
     /* Compute posterior for each class */
@@ -161,7 +202,7 @@ static void logprob_to_prob(double logprob[], unsigned int size) {
 
     unsigned int i;
     double sum = 0.0;
-    double max_logprob = -DBL_MAX;
+    double max_logprob = -INFINITY;
 
     for (i = 0; i < size; ++i) {
         if (logprob[i] > max_logprob) {
@@ -170,8 +211,16 @@ static void logprob_to_prob(double logprob[], unsigned int size) {
     }
 
     for (i = 0; i < size; ++i) {
-        logprob[i] = exp(logprob[i] - max_logprob);
+        if (logprob[i] == -INFINITY) {
+            logprob[i] = 0;
+        } else {
+            logprob[i] = exp(logprob[i] - max_logprob);
+        }
         sum += logprob[i];
+    }
+
+    if (sum == 0) {
+        return;
     }
 
     for (i = 0; i < size; ++i) {
@@ -232,4 +281,43 @@ void rank(LanguageIdentifier* lid, const char* text, unsigned int text_len, Lang
 
     // sort in descending order
     qsort(out, lid->num_langs, sizeof(LanguageConfidence), compare_language_confidence);
+}
+
+int set_languages(LanguageIdentifier* lid, const char* langs[], unsigned int num_langs) {
+    if (langs == NULL) {
+        for (size_t i = 0; i < lid->num_langs; ++i) {
+            lid->nb_classes_mask[i] = true;
+        }
+        return 0;
+    }
+
+    size_t lang_to_nb_classes_index[num_langs];
+
+    for (size_t i = 0; i < num_langs; ++i) {
+        const char* lang = langs[i];
+        bool lang_found = false;
+
+        for (size_t j = 0; j < lid->num_langs; ++j) {
+            if (strcmp(lang, (*lid->nb_classes)[j]) == 0) {
+                lang_found = true;
+                lang_to_nb_classes_index[i] = j;
+                break;
+            }
+        }
+
+        if (!lang_found) {
+            fprintf(stderr, "Unsupported language code %s\n", lang);
+            return -1;
+        }
+    }
+
+    for (size_t i = 0; i < lid->num_langs; ++i) {
+        lid->nb_classes_mask[i] = false;
+    }
+
+    for (size_t i = 0; i < num_langs; ++i) {
+        lid->nb_classes_mask[lang_to_nb_classes_index[i]] = true;
+    }
+
+    return 0;
 }

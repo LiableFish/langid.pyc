@@ -3,6 +3,7 @@
 
 #include "langid.pb-c.h"
 #include "sparseset.h"
+#include <stdbool.h>
 
 /* Structure containing all the state required to
  * implement a language identifier
@@ -21,6 +22,7 @@ typedef struct {
     double (*nb_ptc)[];
 
     char* (*nb_classes)[];
+    bool* nb_classes_mask;
 
     Langid__LanguageIdentifier* protobuf_model;
 
@@ -29,6 +31,7 @@ typedef struct {
      * is much less costly than allocating them from scratch
      */
     Set *sv, *fv;
+
 } LanguageIdentifier;
 
 typedef struct {
@@ -42,5 +45,5 @@ extern void destroy_identifier(LanguageIdentifier*);
 
 extern LanguageConfidence classify(LanguageIdentifier*, const char*, unsigned int);
 extern void rank(LanguageIdentifier*, const char*, unsigned int, LanguageConfidence*);
-//extern void set_languages(LanguageIdentifier*, const char* [], unsigned int)
+extern int set_languages(LanguageIdentifier*, const char*[], unsigned int);
 #endif
