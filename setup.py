@@ -11,7 +11,7 @@ langid_extension = Extension(
     library_dirs=[
         '/opt/homebrew/lib',  # Library directory for protobuf-c
     ],
-    sources=["_langid.c", "liblangid.c", "model.c", "sparseset.c", "langid.pb-c.c"],
+    sources=["lib/_langid.c", "lib/liblangid.c", "lib/sparseset.c", "lib/langid.pb-c.c"],
 )
 
 # Setup function call with updated Extension
