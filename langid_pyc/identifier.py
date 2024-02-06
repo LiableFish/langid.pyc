@@ -17,11 +17,8 @@ class LanguageIdentifier:
     def rank(self, text: str) -> List[Tuple[str, float]]:
         return self._backend.rank(text)
     
-    def set_languages(self, langs: Optional[List[str]] = None):
-        if langs is None:
-            return
-        
-        self._backend.set_languages(langs)
+    def set_languages(self, langs: Optional[List[str]] = None) -> None:        
+        return self._backend.set_languages(langs)
     
     @property
     def nb_classes(self) -> List[str]:

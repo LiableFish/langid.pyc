@@ -221,7 +221,17 @@ static PyObject* LangId_rank(LangIdObject* self, PyObject* args) {
 /* langid.set_languages() Python method */
 static PyObject* LangId_set_languages(LangIdObject* self, PyObject* args) {
     PyObject* lang_list;
-    if (!PyArg_ParseTuple(args, "O!", &PyList_Type, &lang_list)) {
+    if (!PyArg_ParseTuple(args, "|O", &lang_list)) {
+        return NULL;
+    }
+    
+    if (lang_list == Py_None) {
+        set_languages(self->identifier, NULL, 0);
+        Py_RETURN_NONE;
+    }
+
+    if (!PyList_Check(lang_list)) {
+        PyErr_SetString(PyExc_TypeError, "Argument must be a list or None.");
         return NULL;
     }
 
