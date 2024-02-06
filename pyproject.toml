@@ -10,5 +10,20 @@ version = "0.0.4"
 authors = [
     {name = "Aleksandr Lukoianov", email = "liablefish@gmail.com"}
 ]
-description = "Python bindings for langid.c"
+description = "Written in C drop-in replacement of the language identification tool langid.py"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+    "License :: OSI Approved :: BSD License",
+]
+license = {file = "LICENSE"}
+keywords = ["language detection", "language identification", "langid", "langid.py"]
 
+[project.urls]
+Homepage = "https://github.com/LiableFish/langid.pyc"

@@ -24,7 +24,7 @@ build: clean all
 	python -m build
 
 install: build
-	pip install dist/*.whl
+	pip install dist/*.whl --force-reinstall
 
 upload-test: build
 	twine upload -r testpypi dist/* --config-file .pypirc

@@ -1,10 +1,15 @@
 from setuptools import setup, Extension
 
-# Extension definition
+
+def get_readme():
+    with open("README") as f:
+        return f.read()
+
+
 langid_extension = Extension(
     "_langid",
     language='c',
-    libraries=['protobuf-c'],  # Link against the protobuf-c library
+    libraries=['protobuf-c'],
     include_dirs=[
         '/opt/homebrew/include',  # Include directory for protobuf-c headers
         'lib',
@@ -24,6 +29,7 @@ setup(
     packages=["langid_pyc"],
     ext_modules=[langid_extension],
     package_data={
-        'langid_pyc': ['ldpy3.pmodel'],
-    }
+        '': ['ldpy3.pmodel'],
+    },
+    long_description=get_readme(),
 )
