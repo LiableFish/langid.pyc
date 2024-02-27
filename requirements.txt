@@ -3,3 +3,4 @@ twine
 build
 protobuf
 langid
+pytest

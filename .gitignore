@@ -14,3 +14,4 @@ build/
 langid_pb2.py
 .python-version
 .pypirc
+.DS_Store
