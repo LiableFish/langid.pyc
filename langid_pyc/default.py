@@ -15,9 +15,9 @@ def rank(text: str) -> List[Tuple[str, float]]:
     return DEFAULT_IDENTIFIER.rank(text)
 
 
-def set_languages(langs: Optional[List[str]] = None) -> None:    
+def set_languages(langs: Optional[List[str]] = None) -> None:
     global DEFAULT_IDENTIFIER
-    DEFAULT_IDENTIFIER.set_languages(langs) 
+    DEFAULT_IDENTIFIER.set_languages(langs)
     return
 
 

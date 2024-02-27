@@ -9,7 +9,7 @@ def test_nb_classes(langid_py_identifier, langid_pyc_identifier):
 
 
 @pytest.mark.parametrize(
-    "text, true_lang", 
+    "text, true_lang",
     (
         ("", "en"),
         ("this is english text", "en"),
@@ -26,11 +26,11 @@ def test_classify(langid_py_identifier, langid_pyc_identifier, text, true_lang):
 
 
 @pytest.mark.parametrize(
-    "text", 
+    "text",
     (
         "",
-        "this is english text", 
-        "это текст на русском", 
+        "this is english text",
+        "это текст на русском",
         "tämä on suomenkielinen teksti",
     ),
 )
@@ -43,14 +43,11 @@ def test_rank(langid_py_identifier, langid_pyc_identifier, text):
     assert np.allclose(pyc_probs, probs)
 
 
-@pytest.mark.parametrize(
-    "langs",
-    (["en"], ["en", "fi"])
-)
+@pytest.mark.parametrize("langs", (["en"], ["en", "fi"]))
 def test_set_languages(langid_pyc_identifier, langs):
     langid_pyc_identifier.set_languages(langs)
     assert langid_pyc_identifier.nb_classes == langs
-    
+
     lang, _ = langid_pyc_identifier.classify("это текст на русском")
     assert lang in langs
 
