@@ -6,7 +6,7 @@ include proto/*.proto
 include models/*.model
 include langid_pyc/ldpy3.pmodel
 
-include README
+include README.md
 include LICENSE
 include Makefile
 include requirements.txt

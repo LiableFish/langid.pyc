@@ -11,7 +11,7 @@ authors = [
     {name = "Aleksandr Lukoianov", email = "liablefish@gmail.com"}
 ]
 description = "Written in C drop-in replacement of the language identification tool langid.py"
-readme = "README"
+readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
