@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 
 
-DEFAULT_MODEL_PATH = Path(__file__).parent.parent / "ldpy3.pmodel"
+DEFAULT_MODEL_PATH = Path(__file__).parent / "ldpy3.pmodel"
 DEFAULT_IDENTIFIER = LanguageIdentifier.from_modelpath(DEFAULT_MODEL_PATH)
 
 

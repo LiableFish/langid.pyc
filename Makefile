@@ -8,13 +8,13 @@ lib-all:
 
 clean: lib-clean
 	rm -rdf build dist langid_pyc.egg-info langid_pyc/__pycache__
-	rm -f langid_pb2.py *.pmodel
+	rm -f langid_pb2.py langid_pyc/*.pmodel
 
 all: lib-all langid_pb2.py ldpy3.pmodel
 
 # Rule to generate protobuf model from .model files
 %.pmodel: models/%.model langid_pb2.py ldpy_to_protobuf.py
-	python ldpy_to_protobuf.py -o $@ $<
+	python ldpy_to_protobuf.py -o langid_pyc/$@ $<
 
 # Generate Python protobuf file
 langid_pb2.py: proto/langid.proto

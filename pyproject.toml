@@ -6,12 +6,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "langid-pyc"
-version = "0.0.4"
+version = "0.0.7"
 authors = [
     {name = "Aleksandr Lukoianov", email = "liablefish@gmail.com"}
 ]
 description = "Written in C drop-in replacement of the language identification tool langid.py"
-readme = "README.md"
+readme = "README"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",

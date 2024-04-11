@@ -4,7 +4,7 @@ include lib/Makefile
 
 include proto/*.proto
 include models/*.model
-include ldpy3.pmodel
+include langid_pyc/ldpy3.pmodel
 
 include README
 include LICENSE

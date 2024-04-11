@@ -71,6 +71,24 @@ identifier.classify("This is English text")
 # identifier.set_languages(...)
 ```
 
+## How to build?
+Install relevant `protobuf` packages
+```bash
+apt install protobuf-c-compiler libprotobuf-c-dev
+```
+
+Install dev python requirements
+```bash
+pip install -r requirements.txt
+```
+
+Run build
+```
+make build
+```
+
+See [Makefile](Makefile) for more details.
+
 ## How to add a new model?
 Train a new model using `langid.py` package. You will get the model file as described [here](https://github.com/saffsd/langid.py/blob/master/langid/train/train.py#L283):
 ```python
@@ -163,6 +181,3 @@ References
 [3] https://code.google.com/p/cld2/
 [4] https://github.com/google/protobuf/
 [5] https://github.com/protobuf-c/protobuf-c
-
-
-apt install protobuf-c-compiler libprotobuf-c-dev
