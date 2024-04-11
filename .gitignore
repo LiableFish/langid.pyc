@@ -7,3 +7,11 @@ langid
 langid.pb-c.*
 .idea
 .venv
+.vscode
+dist/
+build/
+*.egg-info/
+langid_pb2.py
+.python-version
+.pypirc
+.DS_Store

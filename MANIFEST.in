@@ -1,0 +1,12 @@
+include lib/*.c
+include lib/*.h
+include lib/Makefile
+
+include proto/*.proto
+include models/*.model
+include langid_pyc/ldpy3.pmodel
+
+include README
+include LICENSE
+include Makefile
+include requirements.txt

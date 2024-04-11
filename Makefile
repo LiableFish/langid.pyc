@@ -1,34 +1,33 @@
-MODEL := ldpy.model
-#CFLAGS := -g -O0 -Wall -DDEBUG
-CFLAGS := -Os -Wall
-LDLIBS:= -lprotobuf-c  
+.PHONY: all clean build install upload upload-test lib-clean lib-all
 
-OBJS:=liblangid model sparseset langid.pb-c
+lib-clean:
+	$(MAKE) -C lib clean
 
-.PHONY: all clean
+lib-all:
+	$(MAKE) -C lib all
 
-all: langid
+clean: lib-clean
+	rm -rdf build dist langid_pyc.egg-info langid_pyc/__pycache__
+	rm -f langid_pb2.py langid_pyc/*.pmodel
 
-clean:
-	rm -f langid ${OBJS:=.o} model.c model.h langid.pb-c.c langid.pb-c.h langid_pb2.py
+all: lib-all langid_pb2.py ldpy3.pmodel
 
-liblangid.o: langid.pb-c.h model.h
+# Rule to generate protobuf model from .model files
+%.pmodel: models/%.model langid_pb2.py ldpy_to_protobuf.py
+	python ldpy_to_protobuf.py -o langid_pyc/$@ $<
 
-model.o: model.h
+# Generate Python protobuf file
+langid_pb2.py: proto/langid.proto
+	protoc --proto_path=proto --python_out=. $<
 
-model.h: $(MODEL) ldpy2ldc.py
-	python ldpy2ldc.py --header $< -o $@
+build: clean all
+	python -m build
 
-model.c: $(MODEL) ldpy2ldc.py
-	python ldpy2ldc.py $< -o $@
+install: build
+	pip install dist/*.whl --force-reinstall
 
-langid: langid.c ${OBJS:=.o} liblangid.h model.h sparseset.h langid.pb-c.h
+upload-test: build
+	twine upload -r testpypi dist/* --config-file .pypirc
 
-langid_pb2.py: langid.proto
-	protoc --python_out=. $<
-
-%.pb-c.c %.pb-c.h: %.proto
-	protoc-c --c_out=. $<
-
-%.pmodel: %.model langid_pb2.py ldpy2ldc.py
-	python ldpy2ldc.py --protobuf -o $@ $<
+upload: build
+	twine upload dist/* --config-file .pypirc

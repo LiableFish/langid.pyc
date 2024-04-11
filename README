@@ -1,3 +1,126 @@
+
+# langid.pyc
+The modified version of `langid.c` with Python bindings -- a straightforward replacement for `langid.py`, offering the same features, but 200 times as faster.
+
+## Installation
+```bash
+pip install langid-pyc
+```
+
+## Usage
+### Basic
+```python
+from langid_pyc import (
+    classify,
+    rank,
+)
+
+classify("This is English text")
+# ('en', 0.9999999239251556)
+
+rank("This is English text")
+# [('en', 0.9999999239251556),
+#  ('la', 5.0319768731501096e-08),
+#  ('br', 1.2684715402216825e-08),
+#  ...]
+```
+### Language set constraint
+```python
+from langid_pyc import (
+    classify,
+    nb_classes,
+    set_languages,
+)
+
+nb_classes()
+# ['af',
+#  'am',
+#  'an',
+#  ...]
+
+len(nb_classes())
+# 97
+
+set_languages(["en", "ru"])
+nb_classes()
+# ['en', 'ru']
+
+classify("This is English text")
+# ('en', 1.0)
+
+classify("А это текст на русском")
+# ('ru', 1.0)
+
+set_languages() # reset languages
+len(nb_classes())
+# 97
+```
+### `LanguageIdentifier` class
+```python
+from langid_pyc import LanguageIdentifier
+
+identifier = LanguageIdentifier.from_modelpath("ldpy3.pmodel")  # default model
+
+len(identifier.nb_classes)
+# 97
+
+identifier.classify("This is English text")
+# ('en', 0.9999999239251556)
+
+# identifier.rank(...)
+# identifier.set_languages(...)
+```
+
+## How to build?
+Install relevant `protobuf` packages
+```bash
+apt install protobuf-c-compiler libprotobuf-c-dev
+```
+
+Install dev python requirements
+```bash
+pip install -r requirements.txt
+```
+
+Run build
+```
+make build
+```
+
+See [Makefile](Makefile) for more details.
+
+## How to add a new model?
+Train a new model using `langid.py` package. You will get the model file as described [here](https://github.com/saffsd/langid.py/blob/master/langid/train/train.py#L283):
+```python
+# output the model
+output_path = os.path.join(model_dir, 'your_new_model.model')
+model = nb_ptc, nb_pc, nb_classes,tk_nextmove, tk_output
+string = base64.b64encode(bz2.compress(cPickle.dumps(model)))
+with open(output_path, 'w') as f:
+f.write(string)
+print "wrote model to %s (%d bytes)" % (output_path, len(string))
+```
+
+Move `your_new_model.model` to `models` dir and run
+```bash
+make your_new_model.model
+```
+
+Now you have `your_new_model.pmodel` file in the root which can be feed to `LanguageIdentifer.from_modelpath`
+
+```python
+from langid_pyc import LanguageIdentifier
+
+your_new_identifier = LanguageIdentifier.from_modelpath("your_new_model.pmodel")
+```
+
+## Benchmark
+Benchmark was calculated on Mac M2 Max, 32Gb RAM with python 3.8.18 and can be found [here](benchmark/benchmark.html).
+
+TL;DR `langid.pyc` is ~200x faster than `langid.py` and ~1-1.5x faster than `pycld2`, especially on long texts.
+
+# Original README
+
 ================
 ``langid.c`` readme
 ================
