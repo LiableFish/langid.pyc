@@ -1,6 +1,6 @@
 
 # langid.pyc
-The modified version of `langid.c` with Python bindings -- a straightforward replacement for `langid.py`, offering the same features, but X as faster.
+The modified version of `langid.c` with Python bindings -- a straightforward replacement for `langid.py`, offering the same features, but 200 times as faster.
 
 ## Installation
 ```bash
@@ -115,6 +115,9 @@ your_new_identifier = LanguageIdentifier.from_modelpath("your_new_model.pmodel")
 ```
 
 ## Benchmark
+Benchmark was calculated on Mac M2 Max, 32Gb RAM with python 3.8.18 and can be found [here](benchmark/benchmark.html).
+
+TL;DR `langid.pyc` is ~200x faster than `langid.py` and ~1-1.5x faster than `pycld2`, especially on long texts.
 
 # Original README
 
